@@ -900,6 +900,60 @@
     ];
     let player = { name: '', table: '', fishIdx: 0, fishImg: null };
     let tableRecords = JSON.parse(localStorage.getItem('gael_tables') || '{}');
+    // ── Supabase config ──
+    const SUPABASE_URL  = 'https://jofqqykloefglleqwtes.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZnFxeWtsb2VmZ2xsZXF3dGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzYwMDMsImV4cCI6MjA4OTgxMjAwM30.XCwn8ugsuYB7WneyuWS80jxVobnlHUNHT4pQU-2tLkU';
+
+    async function supabaseUpsert(playerName, tableNum, score, fishIdx) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON,
+            'Authorization': `Bearer ${SUPABASE_ANON}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({
+            player_name: playerName,
+            table_num:   parseInt(tableNum),
+            score:       score,
+            fish_idx:    fishIdx
+          })
+        });
+        if (!res.ok) console.error('Supabase error:', await res.text());
+      } catch (e) {
+        console.warn('Score no guardado en remoto:', e);
+      }
+    }
+
+    async function supabaseFetchLeaderboard() {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/scores?select=player_name,table_num,score,fish_idx&order=score.desc&limit=50`,
+          { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+        );
+        return res.ok ? await res.json() : [];
+      } catch (e) { return []; }
+    }
+
+    async function buildLeaderboard(currentPlayer) {
+      const medals = ['🥇', '🥈', '🥉'];
+      const remote = await supabaseFetchLeaderboard();
+      const allPlayers = remote.length > 0
+        ? remote.map(r => ({ name: r.player_name, table: r.table_num, score: r.score, fish: r.fish_idx }))
+        : JSON.parse(localStorage.getItem('gael_players') || '[]');
+
+            // Sync a Supabase + build leaderboard desde remoto
+      if (score > 0) {
+        supabaseUpsert(player.name, player.table, score, player.fishIdx)
+          .then(() => buildLeaderboard(player));
+      } else {
+        buildLeaderboard(player);
+      }
+
+      showScreen('dead');
+    }
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('gameContainer');
@@ -1688,20 +1742,15 @@
       document.getElementById('bestDisplay').textContent = best;
 
       // Build leaderboard
-      const lb = document.getElementById('leaderboardList');
-      lb.innerHTML = '';
-      const medals = ['🥇', '🥈', '🥉'];
-      allPlayers.slice(0, 8).forEach((p, i) => {
-        const isMe = p.name === player.name && p.table === player.table;
-        const div = document.createElement('div');
-        div.className = 'lb-row' + (isMe ? ' lb-me' : '');
-        div.innerHTML =
-          '<span class="lb-rank">' + (medals[i] || '#' + (i + 1)) + '</span>' +
-          '<span class="lb-name">' + p.name + '</span>' +
-          '<span class="lb-table">Mesa ' + p.table + '</span>' +
-          '<span class="lb-score">' + p.score + '</span>';
-        lb.appendChild(div);
-      });
+            // Sync a Supabase + build leaderboard desde remoto
+      if (score > 0) {
+        supabaseUpsert(player.name, player.table, score, player.fishIdx)
+          .then(() => buildLeaderboard(player));
+      } else {
+        buildLeaderboard(player);
+      }
+
+      showScreen('dead');
 
       // ── Mesa campeona ─────────────────────────────────────────────────
       const mesaMap = {};
