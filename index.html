@@ -315,7 +315,7 @@
 
     #hud {
       position: absolute;
-      top: 27px;
+      top: 0;
       left: 0;
       right: 0;
       display: flex;
@@ -869,6 +869,11 @@
       <div class="congrats-msg" id="congratsMsg"></div>
       <div class="lb-title">🏆 Tabla de Líderes</div>
       <div id="leaderboardList"></div>
+      <div id="mesaCampeonaBlock" style="margin:10px 0 14px;width:100%;max-width:300px;background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(251,191,36,.05));border:1px solid rgba(251,191,36,.4);border-radius:16px;padding:10px 18px;display:none;">
+        <div style="font-size:10px;color:#fbbf24;font-family:'Fredoka One',cursive;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">🏅 Mesa campeona</div>
+        <div id="mesaCampeonaInfo" style="font-family:'Fredoka One',cursive;font-size:22px;color:#fbbf24;"></div>
+        <div id="mesaCampeonaDetalle" style="font-size:11px;color:#e2e8f0;font-weight:700;margin-top:2px;"></div>
+      </div>
       <div class="btn-row">
         <button class="btn-menu" id="menuBtn">🏠</button>
         <button class="btn-play" id="retryBtn">🔄 Otra vez</button>
@@ -962,12 +967,12 @@
     let hitResumeTimer = null;
 
     const LEVELS = [
-      { minScore: 0,  name: 'Aguas Tranquilas',  emoji: '🌊', skyTop: '#0a2a5e', skyBot: '#065f6f', speedMult: 1.0,  gapMult: 1.0,  intMult: 1.0,  darkness: 0    },
-      { minScore: 12, name: 'Corriente Marina',   emoji: '🌀', skyTop: '#0a3a6e', skyBot: '#0a5560', speedMult: 1.14, gapMult: 0.96, intMult: 0.91, darkness: 0    },
-      { minScore: 26, name: 'Arrecife Peligroso', emoji: '🐙', skyTop: '#0a2060', skyBot: '#1a4a3a', speedMult: 1.30, gapMult: 0.90, intMult: 0.82, darkness: 0    },
-      { minScore: 44, name: 'Tormenta Submarina', emoji: '⚡', skyTop: '#0d1a40', skyBot: '#1a2a2a', speedMult: 1.48, gapMult: 0.83, intMult: 0.74, darkness: 0    },
-      { minScore: 66, name: 'Abismo Profundo',    emoji: '🦈', skyTop: '#050d20', skyBot: '#0a1a1a', speedMult: 1.68, gapMult: 0.77, intMult: 0.66, darkness: 0    },
-      { minScore: 92, name: 'Las Fauces',         emoji: '💀', skyTop: '#020508', skyBot: '#050808', speedMult: 1.90, gapMult: 0.68, intMult: 0.58, darkness: 0.72 },
+      { minScore: 0, name: 'Aguas Tranquilas', emoji: '🌊', skyTop: '#0a2a5e', skyBot: '#065f6f', speedMult: 1.0, gapMult: 1.0, intMult: 1.0, darkness: 0 },
+      { minScore: 12, name: 'Corriente Marina', emoji: '🌀', skyTop: '#0a3a6e', skyBot: '#0a5560', speedMult: 1.14, gapMult: 0.96, intMult: 0.91, darkness: 0 },
+      { minScore: 26, name: 'Arrecife Peligroso', emoji: '🐙', skyTop: '#0a2060', skyBot: '#1a4a3a', speedMult: 1.30, gapMult: 0.90, intMult: 0.82, darkness: 0 },
+      { minScore: 44, name: 'Tormenta Submarina', emoji: '⚡', skyTop: '#0d1a40', skyBot: '#1a2a2a', speedMult: 1.48, gapMult: 0.83, intMult: 0.74, darkness: 0 },
+      { minScore: 66, name: 'Abismo Profundo', emoji: '🦈', skyTop: '#050d20', skyBot: '#0a1a1a', speedMult: 1.68, gapMult: 0.77, intMult: 0.66, darkness: 0 },
+      { minScore: 92, name: 'Las Fauces', emoji: '💀', skyTop: '#020508', skyBot: '#050808', speedMult: 1.90, gapMult: 0.68, intMult: 0.58, darkness: 0.72 },
     ];
 
     function getLevelForScore(s) { let lv = LEVELS[0]; for (const l of LEVELS) if (s >= l.minScore) lv = l; return lv; }
@@ -1183,9 +1188,9 @@
       // Birthday text floaters — spread across a wide area
       const bdColors = ['#ffe066', '#ff6eb4', '#7ef7ff', '#b8ff6e', '#ffa94d', '#d78fff'];
       const muralItems = [
-        { text: 'Gael',            x: canvas.width * 0.50, y: canvas.height * 0.36, size: 110, color: bdColors[0] },
-        { text: '🎂',              x: canvas.width * 0.50, y: canvas.height * 0.54, size: 100, color: bdColors[1] },
-        { text: 'Mi primer añito', x: canvas.width * 0.50, y: canvas.height * 0.72, size: 52,  color: bdColors[2] },
+        { text: 'Gael', x: canvas.width * 0.50, y: canvas.height * 0.36, size: 110, color: bdColors[0] },
+        { text: '🎂', x: canvas.width * 0.50, y: canvas.height * 0.54, size: 100, color: bdColors[1] },
+        { text: 'Mi primer añito', x: canvas.width * 0.50, y: canvas.height * 0.72, size: 52, color: bdColors[2] },
       ];
       muralItems.forEach(m => {
         decos.push({
@@ -1405,9 +1410,9 @@
       if (!darkness) return;
       const cx = fishObj.x, cy = fishObj.y;
       const grad = ctx.createRadialGradient(cx, cy, 28, cx, cy, 165);
-      grad.addColorStop(0,    'rgba(0,0,0,0)');
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
       grad.addColorStop(0.45, `rgba(0,0,0,${(darkness * 0.55).toFixed(2)})`);
-      grad.addColorStop(1,    `rgba(0,0,0,${darkness.toFixed(2)})`);
+      grad.addColorStop(1, `rgba(0,0,0,${darkness.toFixed(2)})`);
       ctx.save();
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1548,7 +1553,7 @@
       ctx.font = "bold 42px 'Fredoka One',cursive";
       ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
       ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 8;
-      ctx.fillText(score, canvas.width / 2, 118);
+      ctx.fillText(score, canvas.width / 2, 80);
       ctx.restore();
 
       // Lives — top-left hearts
@@ -1558,7 +1563,7 @@
       for (let i = 0; i < MAX_LIVES; i++) {
         ctx.globalAlpha = i < lives ? 1.0 : 0.25;
         ctx.shadowColor = 'rgba(255,60,100,.7)'; ctx.shadowBlur = 8;
-        ctx.fillText('❤️', 12 + i * 30, 105);
+        ctx.fillText('❤️', 12 + i * 30, 18);
       }
       ctx.globalAlpha = 1; ctx.shadowBlur = 0;
       ctx.restore();
@@ -1697,6 +1702,25 @@
           '<span class="lb-score">' + p.score + '</span>';
         lb.appendChild(div);
       });
+
+      // ── Mesa campeona ─────────────────────────────────────────────────
+      const mesaMap = {};
+      allPlayers.forEach(p => {
+        if (!mesaMap[p.table] || p.score > mesaMap[p.table].score)
+          mesaMap[p.table] = { table: p.table, score: p.score, name: p.name };
+      });
+      const mesaRanking = Object.values(mesaMap).sort((a, b) => b.score - a.score);
+      const mcBlock = document.getElementById('mesaCampeonaBlock');
+      if (mesaRanking.length > 0) {
+        const top = mesaRanking[0];
+        document.getElementById('mesaCampeonaInfo').textContent = 'Mesa ' + top.table + '  ·  ' + top.score + ' pts';
+        const medals2 = ['🥇', '🥈', '🥉'];
+        const partes = mesaRanking.slice(0, 3).map((m, i) => medals2[i] + ' M' + m.table + ': ' + m.score).join('   ');
+        document.getElementById('mesaCampeonaDetalle').textContent = partes;
+        mcBlock.style.display = '';
+      } else {
+        mcBlock.style.display = 'none';
+      }
 
       showScreen('dead');
     }
