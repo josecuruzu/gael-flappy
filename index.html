@@ -1696,6 +1696,7 @@
     }
     const CONGRATS = ['¡Qué buen nadador! 🐠', '¡Sos una estrella marina! ⭐', '¡Como Nemo! 🎉', '¡Impresionante! 🌊', '¡Seguí nadando! 🐬'];
     function showGameOver() {
+  if (hitResumeTimer) { clearTimeout(hitResumeTimer); hitResumeTimer = null; }
       // Fade out music
       if (MUSIC.el && !MUSIC.el.paused) {
         const vol = MUSIC.el.volume;
@@ -1859,7 +1860,10 @@
       animFrame = requestAnimationFrame(gameLoop);
     }
     function flap() { if (gameState === 'playing') fishObj.flap(); }
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, { passive: false });
+    canvas.addEventListener('touchstart', e => {
+  if (gameState === 'playing' || gameState === 'hit') { e.preventDefault(); }
+  flap();
+}, { passive: false });
     canvas.addEventListener('mousedown', flap);
     document.addEventListener('keydown', e => { if (e.code === 'Space') flap(); });
     function startGame() {
@@ -1875,9 +1879,15 @@
       document.getElementById('bestDisplay').textContent = tableRecords['mesa_' + player.table] || 0;
       lastTime = performance.now(); gameLoop(lastTime);
     }
-    document.getElementById('startBtn').addEventListener('click', startGame);
-    document.getElementById('retryBtn').addEventListener('click', startGame);
-    document.getElementById('menuBtn').addEventListener('click', () => { cancelAnimationFrame(animFrame); gameState = 'menu'; showScreen('menu'); lastTime = performance.now(); menuLoop(lastTime); });
+    function goToMenu() { cancelAnimationFrame(animFrame); gameState = 'menu'; showScreen('menu'); lastTime = performance.now(); menuLoop(lastTime); }
+function addTapListener(id, fn) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', fn);
+  el.addEventListener('touchend', e => { e.preventDefault(); fn(); }, { passive: false });
+}
+addTapListener('startBtn', startGame);
+addTapListener('retryBtn', startGame);
+addTapListener('menuBtn', goToMenu);
     initDecos(); initSeabed(); loadSeabedImgs(); showScreen('register');
     (function bgIdle(ts) { if (gameState !== 'register') return; ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg(); requestAnimationFrame(bgIdle); })(performance.now());
   </script>
