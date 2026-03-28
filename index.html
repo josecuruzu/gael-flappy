@@ -905,27 +905,37 @@
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZnFxeWtsb2VmZ2xsZXF3dGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzYwMDMsImV4cCI6MjA4OTgxMjAwM30.XCwn8ugsuYB7WneyuWS80jxVobnlHUNHT4pQU-2tLkU';
 
     async function supabaseUpsert(playerName, tableNum, score, fishIdx) {
-      try {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/scores`, {
-          method: 'POST',
-          headers: {
-            'apikey': SUPABASE_ANON,
-            'Authorization': `Bearer ${SUPABASE_ANON}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
-          },
-          body: JSON.stringify({
-            player_name: playerName,
-            table_num:   parseInt(tableNum),
-            score:       score,
-            fish_idx:    fishIdx
-          })
-        });
-        if (!res.ok) console.error('Supabase error:', await res.text());
-      } catch (e) {
-        console.warn('Score no guardado en remoto:', e);
-      }
-    }
+  try {
+    // Primero verificar el score actual
+    const check = await fetch(
+      `${SUPABASE_URL}/rest/v1/scores?player_name=eq.${encodeURIComponent(playerName)}&table_num=eq.${tableNum}&select=score`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    );
+    const existing = await check.json();
+
+    // Si ya existe y el score guardado es mayor o igual, no hacer nada
+    if (existing.length > 0 && existing[0].score >= score) return;
+
+    const method = existing.length > 0 ? 'PATCH' : 'POST';
+    const url = existing.length > 0
+      ? `${SUPABASE_URL}/rest/v1/scores?player_name=eq.${encodeURIComponent(playerName)}&table_num=eq.${tableNum}`
+      : `${SUPABASE_URL}/rest/v1/scores`;
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ player_name: playerName, table_num: parseInt(tableNum), score, fish_idx: fishIdx })
+    });
+    if (!res.ok) console.error('Supabase error:', await res.text());
+  } catch (e) {
+    console.warn('Score no guardado en remoto:', e);
+  }
+}
 
     async function supabaseFetchLeaderboard() {
       try {
