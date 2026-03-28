@@ -38,6 +38,10 @@
       width: 100%;
       height: 100%;
       touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
     }
 
     .screen {
@@ -869,11 +873,6 @@
       <div class="congrats-msg" id="congratsMsg"></div>
       <div class="lb-title">🏆 Tabla de Líderes</div>
       <div id="leaderboardList"></div>
-      <div id="mesaCampeonaBlock" style="margin:10px 0 14px;width:100%;max-width:300px;background:linear-gradient(135deg,rgba(251,191,36,.15),rgba(251,191,36,.05));border:1px solid rgba(251,191,36,.4);border-radius:16px;padding:10px 18px;display:none;">
-        <div style="font-size:10px;color:#fbbf24;font-family:'Fredoka One',cursive;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;">🏅 Mesa campeona</div>
-        <div id="mesaCampeonaInfo" style="font-family:'Fredoka One',cursive;font-size:22px;color:#fbbf24;"></div>
-        <div id="mesaCampeonaDetalle" style="font-size:11px;color:#e2e8f0;font-weight:700;margin-top:2px;"></div>
-      </div>
       <div class="btn-row">
         <button class="btn-menu" id="menuBtn">🏠</button>
         <button class="btn-play" id="retryBtn">🔄 Otra vez</button>
@@ -900,72 +899,10 @@
     ];
     let player = { name: '', table: '', fishIdx: 0, fishImg: null };
     let tableRecords = JSON.parse(localStorage.getItem('gael_tables') || '{}');
-    // ── Supabase config ──
-    const SUPABASE_URL  = 'https://jofqqykloefglleqwtes.supabase.co';
-    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvZnFxeWtsb2VmZ2xsZXF3dGVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMzYwMDMsImV4cCI6MjA4OTgxMjAwM30.XCwn8ugsuYB7WneyuWS80jxVobnlHUNHT4pQU-2tLkU';
-
-    async function supabaseUpsert(playerName, tableNum, score, fishIdx) {
-  try {
-    // Primero verificar el score actual
-    const check = await fetch(
-      `${SUPABASE_URL}/rest/v1/scores?player_name=eq.${encodeURIComponent(playerName)}&table_num=eq.${tableNum}&select=score`,
-      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
-    );
-    const existing = await check.json();
-
-    // Si ya existe y el score guardado es mayor o igual, no hacer nada
-    if (existing.length > 0 && existing[0].score >= score) return;
-
-    const method = existing.length > 0 ? 'PATCH' : 'POST';
-    const url = existing.length > 0
-      ? `${SUPABASE_URL}/rest/v1/scores?player_name=eq.${encodeURIComponent(playerName)}&table_num=eq.${tableNum}`
-      : `${SUPABASE_URL}/rest/v1/scores`;
-
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'apikey': SUPABASE_ANON,
-        'Authorization': `Bearer ${SUPABASE_ANON}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ player_name: playerName, table_num: parseInt(tableNum), score, fish_idx: fishIdx })
-    });
-    if (!res.ok) console.error('Supabase error:', await res.text());
-  } catch (e) {
-    console.warn('Score no guardado en remoto:', e);
-  }
-}
-
-    async function supabaseFetchLeaderboard() {
-      try {
-        const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/scores?select=player_name,table_num,score,fish_idx&order=score.desc&limit=50`,
-          { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
-        );
-        return res.ok ? await res.json() : [];
-      } catch (e) { return []; }
-    }
-
-    async function buildLeaderboard(currentPlayer) {
-      const medals = ['🥇', '🥈', '🥉'];
-      const remote = await supabaseFetchLeaderboard();
-      const allPlayers = remote.length > 0
-        ? remote.map(r => ({ name: r.player_name, table: r.table_num, score: r.score, fish: r.fish_idx }))
-        : JSON.parse(localStorage.getItem('gael_players') || '[]');
-
-            // Sync a Supabase + build leaderboard desde remoto
-      if (score > 0) {
-        supabaseUpsert(player.name, player.table, score, player.fishIdx)
-          .then(() => buildLeaderboard(player));
-      } else {
-        buildLeaderboard(player);
-      }
-
-      showScreen('dead');
-    }
     const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'low';
     const container = document.getElementById('gameContainer');
     function resize() { canvas.width = container.clientWidth; canvas.height = container.clientHeight; }
     resize(); window.addEventListener('resize', resize);
@@ -1054,8 +991,9 @@
         if (!player.fishImg || !player.fishImg.complete) return;
         if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 0) return; // blink
         ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle * Math.PI / 180);
-        ctx.shadowColor = 'rgba(0,180,255,.6)'; ctx.shadowBlur = 14;
-        ctx.drawImage(player.fishImg, -FISH_W / 2, -FISH_H / 2, FISH_W, FISH_H); ctx.restore();
+        ctx.shadowColor = 'rgba(0,180,255,.5)'; ctx.shadowBlur = 8;
+        ctx.drawImage(player.fishImg, -FISH_W / 2, -FISH_H / 2, FISH_W, FISH_H);
+        ctx.shadowBlur = 0; ctx.restore();
       },
       hits(pipes) {
         if (this.invincible > 0) return false;
@@ -1134,70 +1072,96 @@
           }
         }
       }
-      pipes = pipes.filter(p => p.x + p.w > -20);
+      pipes = pipes.filter(p => {
+        if (p.x + p.w <= -20) { p._cache = null; return false; }
+        return true;
+      });
+    }
+
+    // ── PIPE CACHE: pre-render static column portions to offscreen canvas ────────
+
+    function _buildPipeCache(p) {
+      const STEP = 42;
+      const theme = p.theme || COLUMN_THEMES[0];
+      const cw = p.w + 20; // small horizontal margin
+      const ch = canvas.height;
+      const oc = document.createElement('canvas');
+      oc.width = cw; oc.height = ch;
+      const octx = oc.getContext('2d');
+      const cx = cw / 2;
+
+      octx.font = '46px serif';
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      // Single shadow pass — applied once, not per glyph
+      octx.shadowColor = 'rgba(0,180,120,.5)';
+      octx.shadowBlur = 8;
+
+      // TOP column
+      let seg = 0, y = p.topH;
+      while (y > -STEP) {
+        const emoji = getColumnEmoji(theme, seg++);
+        octx.save();
+        octx.translate(cx, y);
+        octx.scale(1, -1);
+        octx.fillText(emoji, 0, 0);
+        octx.restore();
+        y -= STEP;
+      }
+
+      // BOTTOM column — skip heart lane gap area
+      seg = 0;
+      y = p.topH + PIPE_GAP + STEP;
+      const gapEnd = canvas.height - GROUND_H + STEP * 2;
+      while (y < gapEnd) {
+        if (p.heartLane && !p.heartLane.collected &&
+          y > p.heartLane.top - STEP && y < p.heartLane.bot + STEP) {
+          y += STEP; seg++; continue;
+        }
+        octx.fillText(getColumnEmoji(theme, seg++), cx, y);
+        y += STEP;
+      }
+
+      p._cache = oc;
+      p._cacheKey = p.topH; // invalidate if topH ever changes (it doesn't after spawn)
     }
 
     function drawPipes() {
-      const STEP = 42;
+      const now = performance.now();
       pipes.forEach(p => {
-        const theme = p.theme || COLUMN_THEMES[0];
-        const cx = p.x + p.w / 2;
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,180,120,.5)';
-        ctx.shadowBlur = 10;
-        ctx.font = '46px serif';
-        ctx.textAlign = 'center';
-
-        // TOP column: draw from gap edge upward
-        let seg = 0;
-        let y = p.topH;
-        while (y > -STEP) {
-          const emoji = getColumnEmoji(theme, seg++);
-          ctx.save();
-          ctx.translate(cx, y);
-          ctx.scale(1, -1);
-          ctx.fillText(emoji, 0, 0);
-          ctx.restore();
-          y -= STEP;
+        // Build / reuse offscreen cache
+        if (!p._cache || p._cacheKey !== p.topH || p._heartCollectedAtCache !== (p.heartLane && p.heartLane.collected)) {
+          p._heartCollectedAtCache = p.heartLane && p.heartLane.collected;
+          _buildPipeCache(p);
         }
 
-        // BOTTOM column: draw from gap edge downward, skip heart lane opening
-        seg = 0;
-        y = p.topH + PIPE_GAP + STEP;
-        while (y < canvas.height - GROUND_H + STEP * 2) {
-          // Skip emojis inside heart lane opening
-          if (p.heartLane && !p.heartLane.collected &&
-            y > p.heartLane.top - STEP && y < p.heartLane.bot + STEP) {
-            y += STEP; seg++; continue;
-          }
-          const emoji = getColumnEmoji(theme, seg++);
-          ctx.fillText(emoji, cx, y);
-          y += STEP;
-        }
+        // Blit the cached column
+        ctx.drawImage(p._cache, p.x - 10, 0);
 
-        // Draw heart lane: opening borders + pulsing heart
+        // Heart lane overlay (animated — cannot be cached)
         if (p.heartLane && !p.heartLane.collected) {
           const hl = p.heartLane;
+          const cx = p.x + p.w / 2;
           const midY = (hl.top + hl.bot) / 2;
-          // Bracket emojis marking the lane
+
+          ctx.save();
           ctx.font = '28px serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
           ctx.globalAlpha = 0.7;
           ctx.fillText('💫', cx, hl.top);
           ctx.fillText('💫', cx, hl.bot);
-          // Pulsing heart
-          const pulse = 1 + Math.sin(performance.now() / 300) * 0.15;
-          ctx.save();
+
+          const pulse = 1 + Math.sin(now / 300) * 0.15;
           ctx.translate(cx, midY);
           ctx.scale(pulse, pulse);
           ctx.font = '32px serif';
           ctx.globalAlpha = 1;
           ctx.shadowColor = 'rgba(255,60,100,0.9)';
-          ctx.shadowBlur = 20;
+          ctx.shadowBlur = 16;
           ctx.fillText('❤️', 0, 0);
           ctx.restore();
         }
-
-        ctx.restore();
       });
     }
 
@@ -1215,24 +1179,24 @@
 
     function initPX() {
       PX.far = []; PX.mid = []; PX.near = [];
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 7; i++) {
         PX.far.push({
-          x: (canvas.width / 10) * i * 1.5, y: canvas.height * 0.15 + Math.random() * canvas.height * 0.55,
-          size: 38 + Math.random() * 32, speed: 0.5, alpha: 0.20 + Math.random() * 0.14,
+          x: (canvas.width / 7) * i * 2.0, y: canvas.height * 0.15 + Math.random() * canvas.height * 0.55,
+          size: 38 + Math.random() * 32, speed: 0.5, alpha: 0.18 + Math.random() * 0.10,
           shape: FAR_SHAPES[i % FAR_SHAPES.length]
         });
       }
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 10; i++) {
         PX.mid.push({
-          x: (canvas.width / 14) * i * 1.8, y: canvas.height * 0.10 + Math.random() * canvas.height * 0.65,
-          size: 26 + Math.random() * 22, speed: 1.4, alpha: 0.25 + Math.random() * 0.16,
+          x: (canvas.width / 10) * i * 1.8, y: canvas.height * 0.10 + Math.random() * canvas.height * 0.65,
+          size: 26 + Math.random() * 22, speed: 1.4, alpha: 0.22 + Math.random() * 0.14,
           shape: MID_SHAPES[i % MID_SHAPES.length], wave: Math.random() * Math.PI * 2
         });
       }
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 5; i++) {
         PX.near.push({
-          x: (canvas.width / 7) * i * 1.4, y: canvas.height * 0.08 + Math.random() * canvas.height * 0.70,
-          size: 60 + Math.random() * 40, speed: 3.5, alpha: 0.30 + Math.random() * 0.18,
+          x: (canvas.width / 5) * i * 1.4, y: canvas.height * 0.08 + Math.random() * canvas.height * 0.70,
+          size: 60 + Math.random() * 40, speed: 3.5, alpha: 0.28 + Math.random() * 0.16,
           shape: NEAR_SHAPES[i % NEAR_SHAPES.length]
         });
       }
@@ -1270,7 +1234,8 @@
       });
     }
 
-    function drawBg() {
+    function drawBg(now) {
+      now = now || performance.now();
       // Ocean gradient
       const lv = getLevelForScore(score);
       const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -1295,7 +1260,7 @@
 
       // Caustic light rays
       ctx.save(); ctx.globalAlpha = .04;
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 4; i++) {
         const x = (canvas.width * .1 * i + bgScroll * 1.2) % (canvas.width * 1.2) - canvas.width * .1;
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 60, canvas.height);
         ctx.lineWidth = 30; ctx.strokeStyle = '#7dd3fc'; ctx.stroke();
@@ -1306,16 +1271,16 @@
       if (gameState === 'playing' || gameState === 'dead') {
         const sbTop2 = canvas.height - GROUND_H;
 
-        // FAR: slow, blurry
-        ctx.save(); ctx.filter = 'blur(2px)';
+        // FAR: slow, semi-transparent (no CSS blur — demasiado lento en Safari)
+        ctx.save();
         PX.far.forEach(e => {
           e.x -= e.speed;
           if (e.x < -80) { e.x = canvas.width + 60 + Math.random() * 120; e.y = canvas.height * 0.15 + Math.random() * canvas.height * 0.50; e.size = 38 + Math.random() * 32; e.shape = FAR_SHAPES[Math.floor(Math.random() * FAR_SHAPES.length)]; }
           e.y = Math.min(e.y, sbTop2 - e.size * 0.4);
-          ctx.globalAlpha = e.alpha; ctx.font = `${e.size}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.globalAlpha = e.alpha * 0.65; ctx.font = `${e.size}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText(e.shape, e.x, e.y);
         });
-        ctx.filter = 'none'; ctx.restore();
+        ctx.restore();
 
         // MID: medium speed
         ctx.save();
@@ -1391,18 +1356,18 @@
       ctx.fillStyle = sandG;
       ctx.fillRect(0, sbTop, canvas.width, GROUND_H);
 
-      // Sand ripples (scrolling)
+      // Sand ripples (scrolling) — paso de 4 a 12px para menos iteraciones en móvil
       ctx.save();
-      ctx.globalAlpha = 0.2;
+      ctx.globalAlpha = 0.18;
       ctx.strokeStyle = '#e8c87a';
       ctx.lineWidth = 1.2;
-      for (let i = 0; i < 3; i++) {
-        const ry = sbTop + 8 + i * 10;
+      for (let i = 0; i < 2; i++) {
+        const ry = sbTop + 10 + i * 12;
+        const off = (bgScroll * 1.5 * (1 + i * 0.3)) % (canvas.width + 60);
         ctx.beginPath();
-        for (let x = -canvas.width; x < canvas.width * 2; x += 4) {
-          const wx = (x + bgScroll * 1.5 * (1 + i * 0.3)) % (canvas.width + 60);
-          const wy = ry + Math.sin(wx * 0.04) * 2;
-          wx === x - Math.floor(wx) ? ctx.moveTo(x, wy) : ctx.lineTo(x, wy);
+        for (let x = 0; x < canvas.width; x += 12) {
+          const wy = ry + Math.sin((x + off) * 0.04) * 2;
+          x === 0 ? ctx.moveTo(x, wy) : ctx.lineTo(x, wy);
         }
         ctx.stroke();
       }
@@ -1454,7 +1419,7 @@
             // buriedPx: how many px of the plant are buried in sand
             const buriedPx = item.buried || 0;
             const pivotY = sbTop + buriedPx; // rotation pivot = base of visible plant
-            const sway = Math.sin(performance.now() / 1000 * item.swaySpeed + item.swayPhase) * item.swayAng;
+            const sway = Math.sin(now / 1000 * item.swaySpeed + item.swayPhase) * item.swayAng;
             ctx.save();
             ctx.translate(x, pivotY);
             ctx.rotate(sway * Math.PI / 180);
@@ -1605,7 +1570,7 @@
 
     const bubbles = [];
     function resetBubble(b) { b.x = Math.random() * canvas.width; b.y = canvas.height - GROUND_H; b.r = 2 + Math.random() * 6; b.speed = .5 + Math.random() * 1.2; b.alpha = .3 + Math.random() * .4; }
-    for (let i = 0; i < 18; i++) { const b = {}; resetBubble(b); b.y = Math.random() * canvas.height; bubbles.push(b); }
+    for (let i = 0; i < 10; i++) { const b = {}; resetBubble(b); b.y = Math.random() * canvas.height; bubbles.push(b); }
     const particles = [];
     function spawnParticles() { ['⭐', '✨', '💫'].forEach(e => { particles.push({ x: fishObj.x, y: fishObj.y, vx: (Math.random() - .5) * 5, vy: -2 - Math.random() * 3, life: 1, emoji: e, size: 14 + Math.random() * 10 }); }); }
     function drawParticles() { for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += .1; p.life -= .035; if (p.life <= 0) { particles.splice(i, 1); continue; } ctx.save(); ctx.globalAlpha = p.life; ctx.font = `${p.size}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.emoji, p.x, p.y); ctx.restore(); } }
@@ -1696,7 +1661,6 @@
     }
     const CONGRATS = ['¡Qué buen nadador! 🐠', '¡Sos una estrella marina! ⭐', '¡Como Nemo! 🎉', '¡Impresionante! 🌊', '¡Seguí nadando! 🐬'];
     function showGameOver() {
-  if (hitResumeTimer) { clearTimeout(hitResumeTimer); hitResumeTimer = null; }
       // Fade out music
       if (MUSIC.el && !MUSIC.el.paused) {
         const vol = MUSIC.el.volume;
@@ -1753,39 +1717,25 @@
       document.getElementById('bestDisplay').textContent = best;
 
       // Build leaderboard
-            // Sync a Supabase + build leaderboard desde remoto
-      if (score > 0) {
-        supabaseUpsert(player.name, player.table, score, player.fishIdx)
-          .then(() => buildLeaderboard(player));
-      } else {
-        buildLeaderboard(player);
-      }
-
-      showScreen('dead');
-
-      // ── Mesa campeona ─────────────────────────────────────────────────
-      const mesaMap = {};
-      allPlayers.forEach(p => {
-        if (!mesaMap[p.table] || p.score > mesaMap[p.table].score)
-          mesaMap[p.table] = { table: p.table, score: p.score, name: p.name };
+      const lb = document.getElementById('leaderboardList');
+      lb.innerHTML = '';
+      const medals = ['🥇', '🥈', '🥉'];
+      allPlayers.slice(0, 8).forEach((p, i) => {
+        const isMe = p.name === player.name && p.table === player.table;
+        const div = document.createElement('div');
+        div.className = 'lb-row' + (isMe ? ' lb-me' : '');
+        div.innerHTML =
+          '<span class="lb-rank">' + (medals[i] || '#' + (i + 1)) + '</span>' +
+          '<span class="lb-name">' + p.name + '</span>' +
+          '<span class="lb-table">Mesa ' + p.table + '</span>' +
+          '<span class="lb-score">' + p.score + '</span>';
+        lb.appendChild(div);
       });
-      const mesaRanking = Object.values(mesaMap).sort((a, b) => b.score - a.score);
-      const mcBlock = document.getElementById('mesaCampeonaBlock');
-      if (mesaRanking.length > 0) {
-        const top = mesaRanking[0];
-        document.getElementById('mesaCampeonaInfo').textContent = 'Mesa ' + top.table + '  ·  ' + top.score + ' pts';
-        const medals2 = ['🥇', '🥈', '🥉'];
-        const partes = mesaRanking.slice(0, 3).map((m, i) => medals2[i] + ' M' + m.table + ': ' + m.score).join('   ');
-        document.getElementById('mesaCampeonaDetalle').textContent = partes;
-        mcBlock.style.display = '';
-      } else {
-        mcBlock.style.display = 'none';
-      }
 
       showScreen('dead');
     }
     function menuLoop(ts) {
-      lastTime = ts; ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg();
+      lastTime = ts; ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg(ts);
       if (player.fishImg && player.fishImg.complete) { ctx.save(); ctx.translate(canvas.width * .22, canvas.height * .45 + Math.sin(ts / 600) * 10); ctx.rotate(Math.sin(ts / 600) * 8 * Math.PI / 180); ctx.shadowColor = 'rgba(0,180,255,.6)'; ctx.shadowBlur = 14; ctx.drawImage(player.fishImg, -FISH_W / 2, -FISH_H / 2, FISH_W, FISH_H); ctx.restore(); }
       animFrame = requestAnimationFrame(menuLoop);
     }
@@ -1822,7 +1772,7 @@
 
     function gameLoop(ts) {
       const dt = Math.min(ts - lastTime, 50); lastTime = ts;
-      ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg();
+      ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg(ts);
       if (ts - lastPipeTime > PIPE_INTERVAL) { spawnPipe(); lastPipeTime = ts; }
       updatePipes(dt); updateLifeItems(); drawPipes(); drawLifeItems(); fishObj.update(); drawParticles(); fishObj.draw(); drawDarkness(); drawHUD();
       if (fishObj.hits(pipes)) {
@@ -1834,7 +1784,7 @@
           gameState = 'hit';
           MUSIC.pause();
           // Dibujar overlay encima del frame actual
-          ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg();
+          ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg(ts);
           drawPipes(); drawLifeItems(); drawParticles(); fishObj.draw(); drawHUD();
           drawHitOverlay();
           // Reanudar tras 2.2s o al tocar
@@ -1860,10 +1810,7 @@
       animFrame = requestAnimationFrame(gameLoop);
     }
     function flap() { if (gameState === 'playing') fishObj.flap(); }
-    canvas.addEventListener('touchstart', e => {
-  if (gameState === 'playing' || gameState === 'hit') { e.preventDefault(); }
-  flap();
-}, { passive: false });
+    canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, { passive: false });
     canvas.addEventListener('mousedown', flap);
     document.addEventListener('keydown', e => { if (e.code === 'Space') flap(); });
     function startGame() {
@@ -1879,17 +1826,11 @@
       document.getElementById('bestDisplay').textContent = tableRecords['mesa_' + player.table] || 0;
       lastTime = performance.now(); gameLoop(lastTime);
     }
-    function goToMenu() { cancelAnimationFrame(animFrame); gameState = 'menu'; showScreen('menu'); lastTime = performance.now(); menuLoop(lastTime); }
-function addTapListener(id, fn) {
-  const el = document.getElementById(id);
-  el.addEventListener('click', fn);
-  el.addEventListener('touchend', e => { e.preventDefault(); fn(); }, { passive: false });
-}
-addTapListener('startBtn', startGame);
-addTapListener('retryBtn', startGame);
-addTapListener('menuBtn', goToMenu);
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('retryBtn').addEventListener('click', startGame);
+    document.getElementById('menuBtn').addEventListener('click', () => { cancelAnimationFrame(animFrame); gameState = 'menu'; showScreen('menu'); lastTime = performance.now(); menuLoop(lastTime); });
     initDecos(); initSeabed(); loadSeabedImgs(); showScreen('register');
-    (function bgIdle(ts) { if (gameState !== 'register') return; ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg(); requestAnimationFrame(bgIdle); })(performance.now());
+    (function bgIdle(ts) { if (gameState !== 'register') return; ctx.clearRect(0, 0, canvas.width, canvas.height); drawBg(ts); requestAnimationFrame(bgIdle); })(performance.now());
   </script>
   <script>
     // ── AUDIO + HAPTIC + VISUAL EFFECTS ──────────────────────────────────────────
